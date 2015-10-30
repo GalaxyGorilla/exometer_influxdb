@@ -73,6 +73,7 @@ exometer_report(Metric, DataPoint, Extra, Value,
     {MetricsName, SubscriberTags} = maps:get(Metric, Metrics),
     ExtraTags = case Extra of undefined -> []; _ -> Extra end,
     Tags = merge_tags(merge_tags(DefaultTags, SubscriberTags), ExtraTags),
+    io:format("~p~n~p~n", [MetricsName, Tags]),
     Packet = make_packet(MetricsName, Tags, maps:from_list([{DataPoint, Value}]),
                          State#state.precision),
     send(Packet, State).
