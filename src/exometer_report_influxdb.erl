@@ -70,10 +70,10 @@ exometer_init(Opts) ->
                       state()) -> callback_result().
 exometer_report(Metric, DataPoint, Extra, Value,
                 #state{tags = DefaultTags, metrics = Metrics} = State) ->
-    {MetricsName, SubscriberTags} = maps:get(Metric, Metrics),
+    {MetricName, SubscriberTags} = maps:get(Metric, Metrics),
     ExtraTags = case Extra of undefined -> []; _ -> Extra end,
     Tags = merge_tags(merge_tags(DefaultTags, SubscriberTags), ExtraTags),
-    Packet = make_packet(MetricsName, Tags, maps:from_list([{DataPoint, Value}]),
+    Packet = make_packet(MetricName, Tags, maps:from_list([{DataPoint, Value}]),
                          State#state.precision),
     send(Packet, State).
 
@@ -85,7 +85,7 @@ exometer_report(Metric, DataPoint, Extra, Value,
 exometer_subscribe(Metric, _DataPoint, _Interval, Tags, 
                    #state{metrics=Metrics} = State) ->
     {MetricName, NewTags} = evaluate_subscription_tags(Metric, Tags),
-    io:format("~p~n~p~n", [MetricsName, NewTags]),
+    io:format("~p~n~p~n", [MetricName, NewTags]),
     case MetricName of
         [] -> exit(invalid_metric_name);
         _  -> 
