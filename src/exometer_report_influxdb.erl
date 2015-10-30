@@ -72,6 +72,7 @@ exometer_report(Metric, DataPoint, Extra, Value,
                 #state{tags = DefaultTags, metrics = Metrics} = State) ->
     io:format("~p~n", [DefaultTags]),
     {MetricName, SubscriberTags} = maps:get(Metric, Metrics),
+    io:format("~p~n", [SubscriberTags]),
     ExtraTags = case Extra of undefined -> []; _ -> Extra end,
     Tags = merge_tags(merge_tags(DefaultTags, SubscriberTags), ExtraTags),
     Packet = make_packet(MetricName, Tags, maps:from_list([{DataPoint, Value}]),
@@ -217,7 +218,6 @@ key(K) when is_integer(K) -> key(integer_to_binary(K));
 key(K) when is_list(K) -> key(list_to_binary(K));
 key(K) when is_atom(K) -> key(atom_to_binary(K, utf8));
 key(K) -> 
-    io:format("~p~n", [K]),
     binary:replace(K, [<<" ">>, <<$,>>, <<$=>>], <<$\\>>,
                    [global, {insert_replaced, 1}]).
 
