@@ -70,6 +70,7 @@ exometer_init(Opts) ->
                       state()) -> callback_result().
 exometer_report(Metric, DataPoint, Extra, Value,
                 #state{tags = DefaultTags, metrics = Metrics} = State) ->
+    io:format("~p~n", [DefaultTags]),
     {MetricName, SubscriberTags} = maps:get(Metric, Metrics),
     ExtraTags = case Extra of undefined -> []; _ -> Extra end,
     Tags = merge_tags(merge_tags(DefaultTags, SubscriberTags), ExtraTags),
