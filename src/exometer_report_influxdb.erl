@@ -216,6 +216,7 @@ key(K) when is_integer(K) -> key(integer_to_binary(K));
 key(K) when is_list(K) -> key(list_to_binary(K));
 key(K) when is_atom(K) -> key(atom_to_binary(K, utf8));
 key(K) -> 
+    io:format("~p~n", [K]),
     binary:replace(K, [<<" ">>, <<$,>>, <<$=>>], <<$\\>>,
                    [global, {insert_replaced, 1}]).
 
