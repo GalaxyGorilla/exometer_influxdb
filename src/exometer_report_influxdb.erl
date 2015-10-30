@@ -265,6 +265,7 @@ del_indices1(_List, _Indices) ->
     exit(invalid_indices).
 
 evaluate_subscription_tags(Metric, Tags) ->
+    io:format("~p~n~p~n", [Metric, Tags]),
     evaluate_subscription_tags(Metric, Tags, [], []).
 
 evaluate_subscription_tags(Metric, [], TagAkk, PosAkk) ->
