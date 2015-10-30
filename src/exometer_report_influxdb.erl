@@ -84,7 +84,7 @@ exometer_report(Metric, DataPoint, Extra, Value,
                          exometer_report:interval(), 
                          exometer_report:extra(), 
                          state()) -> callback_result().
-exometer_subscribe(Metric, _DataPoint, Interval, Tags, 
+exometer_subscribe(Metric, _DataPoint, _Interval, Tags, 
                    #state{metrics=Metrics} = State) ->
     {MetricName, NewTags} = evaluate_subscription_tags(Metric, Tags),
     case MetricName of
@@ -276,18 +276,18 @@ evaluate_subscription_tags(Metric, [{Key, {from_name, Name}} | Tags], TagAkk, Po
     case string:str(Metric, [Name]) of
         0     -> exit(invalid_tag_options);
         Index ->
-            NewTagAkk = TagAkk ++ [{Key, Name}],
+            NewTagAkk = TagAkk ++ [{value(Key), Name}],
             NewPosAkk = PosAkk ++ [Index],
             evaluate_subscription_tags(Metric, Tags, NewTagAkk, NewPosAkk)
     end;
 evaluate_subscription_tags(Metric, [{Key, {from_name, Pos}} | Tags], TagAkk, PosAkk) 
     when is_number(Pos), length(Metric) >= Pos, Pos > 0 ->
-    NewTagAkk = TagAkk ++ [{Key, lists:nth(Pos, Metric)}],
+    NewTagAkk = TagAkk ++ [{value(Key), lists:nth(Pos, Metric)}],
     NewPosAkk = PosAkk ++ [Pos],
     evaluate_subscription_tags(Metric, Tags, NewTagAkk, NewPosAkk);
 evaluate_subscription_tags(_Metric, [{_Key, {from_name, _Pos}} | _], _TagAkk, _PosAkk) ->
     exit(invalid_tag_options);
-evaluate_subscription_tags(Metric, [{_Key, _Value} = Tag | Tags], TagAkk, PosAkk) ->
-    evaluate_subscription_tags(Metric, Tags, TagAkk ++ [Tag], PosAkk);
+evaluate_subscription_tags(Metric, [{Key, Value} | Tags], TagAkk, PosAkk) ->
+    evaluate_subscription_tags(Metric, Tags, TagAkk ++ [{value(Key), Value}], PosAkk);
 evaluate_subscription_tags(_Metric, _Tags, _TagAkk, _PosAkk) ->
     exit(invalid_tag_options).
