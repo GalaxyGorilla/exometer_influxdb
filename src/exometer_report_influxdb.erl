@@ -68,14 +68,10 @@ exometer_init(Opts) ->
                       exometer_report:extra(),
                       value(),
                       state()) -> callback_result().
-exometer_report(Metric, DataPoint, Extra, Value,
+exometer_report(Metric, DataPoint, _Extra, Value,
                 #state{tags = DefaultTags, metrics = Metrics} = State) ->
-    ExtraTags = case Extra of undefined -> []; _ -> Extra end,
     {MetricName, SubscriberTags} = maps:get(Metric, Metrics),
-    io:format(">Default: ~p~n", [DefaultTags]),
-    io:format(">Extra: ~p~n", [Extra]),
-    io:format(">Subscription: ~p~n", [SubscriberTags]),
-    Tags = merge_tags(merge_tags(DefaultTags, SubscriberTags), ExtraTags),
+    Tags = merge_tags(DefaultTags, SubscriberTags),
     Packet = make_packet(MetricName, Tags, maps:from_list([{DataPoint, Value}]),
                          State#state.precision),
     send(Packet, State).
@@ -88,9 +84,6 @@ exometer_report(Metric, DataPoint, Extra, Value,
 exometer_subscribe(Metric, _DataPoint, _Interval, TagOpts, 
                    #state{metrics=Metrics, tags=DefaultTags} = State) ->
     {MetricName, SubscriberTags} = evaluate_subscription_tags(Metric, TagOpts),
-    io:format("Default: ~p~n", [DefaultTags]),
-    io:format("Subscription before: ~p~n", [TagOpts]),
-    io:format("Subscription after: ~p~n", [SubscriberTags]),
     case MetricName of
         [] -> exit(invalid_metric_name);
         _  -> 
@@ -249,8 +242,6 @@ flatten_tags(Tags) ->
 -spec make_packet(exometer_report:metric(), map() | list(), 
                   list(), precision()) -> list().
 make_packet(Measurement, Tags, Fields, Precision) ->
-    io:format("Tags: ~p~n", [Tags]),
-    io:format("Fields: ~p~n", [Fields]),
     BinaryTags = flatten_tags(Tags),
     BinaryFields = flatten_fields(Fields),
     [name(Measurement), ?SEP(BinaryTags), BinaryTags, " ", BinaryFields, 
@@ -279,13 +270,11 @@ evaluate_subscription_tags(Metric, [], TagAkk, PosAkk) ->
     {MetricName, maps:from_list(TagAkk)};
 evaluate_subscription_tags(Metric, [{Key, {from_name, Pos}} | Tags], TagAkk, PosAkk) 
     when is_number(Pos), length(Metric) >= Pos, Pos > 0 ->
-    io:format("number: ~p / ~p~n", [Key, Pos]),
     NewTagAkk = TagAkk ++ [{Key, lists:nth(Pos, Metric)}],
     NewPosAkk = PosAkk ++ [Pos],
     evaluate_subscription_tags(Metric, Tags, NewTagAkk, NewPosAkk);
 evaluate_subscription_tags(Metric, [{Key, {from_name, Name}} | Tags], TagAkk, PosAkk) 
     when is_atom(Name) ->
-    io:format("else: ~p / ~p~n", [Key, Name]),
     case string:str(Metric, [Name]) of
         0     -> exit(invalid_tag_options);
         Index ->
@@ -296,7 +285,6 @@ evaluate_subscription_tags(Metric, [{Key, {from_name, Name}} | Tags], TagAkk, Po
 evaluate_subscription_tags(_Metric, [{_Key, {from_name, _Pos}} | _], _TagAkk, _PosAkk) ->
     exit(invalid_tag_options);
 evaluate_subscription_tags(Metric, [{Key, Value} | Tags], TagAkk, PosAkk) ->
-    io:format("normal: ~p / ~p~n", [Key, Value]),
     evaluate_subscription_tags(Metric, Tags, TagAkk ++ [{Key, Value}], PosAkk);
 evaluate_subscription_tags(_Metric, _Tags, _TagAkk, _PosAkk) ->
     exit(invalid_tag_options).
