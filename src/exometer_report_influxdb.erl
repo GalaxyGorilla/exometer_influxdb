@@ -246,6 +246,8 @@ flatten_tags(Tags) ->
 -spec make_packet(exometer_report:metric(), map() | list(), 
                   list(), precision()) -> list().
 make_packet(Measurement, Tags, Fields, Precision) ->
+    io:format("Tags: ~p~n", [Tags]),
+    io:format("Fields: ~p~n", [Fields]),
     BinaryTags = flatten_tags(Tags),
     BinaryFields = flatten_fields(Fields),
     [name(Measurement), ?SEP(BinaryTags), BinaryTags, " ", BinaryFields, 
