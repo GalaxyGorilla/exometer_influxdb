@@ -70,8 +70,8 @@ exometer_init(Opts) ->
                       state()) -> callback_result().
 exometer_report(Metric, DataPoint, Extra, Value,
                 #state{tags = DefaultTags, metrics = Metrics} = State) ->
-    {MetricName, SubscriberTags} = maps:get(Metric, Metrics),
     ExtraTags = case Extra of undefined -> []; _ -> Extra end,
+    {MetricName, SubscriberTags} = maps:get(Metric, Metrics),
     Tags = merge_tags(merge_tags(DefaultTags, SubscriberTags), ExtraTags),
     Packet = make_packet(MetricName, Tags, maps:from_list([{DataPoint, Value}]),
                          State#state.precision),
@@ -274,6 +274,11 @@ evaluate_subscription_tags(Metric, Tags) ->
 evaluate_subscription_tags(Metric, [], TagAkk, PosAkk) ->
     MetricName = del_indices(Metric, PosAkk),
     {MetricName, maps:from_list(TagAkk)};
+evaluate_subscription_tags(Metric, [{Key, {from_name, Pos}} | Tags], TagAkk, PosAkk) 
+    when is_number(Pos), length(Metric) >= Pos, Pos > 0 ->
+    NewTagAkk = TagAkk ++ [{Key, lists:nth(Pos, Metric)}],
+    NewPosAkk = PosAkk ++ [Pos],
+    evaluate_subscription_tags(Metric, Tags, NewTagAkk, NewPosAkk);
 evaluate_subscription_tags(Metric, [{Key, {from_name, Name}} | Tags], TagAkk, PosAkk) 
     when is_atom(Name) ->
     case string:str(Metric, [Name]) of
@@ -283,14 +288,10 @@ evaluate_subscription_tags(Metric, [{Key, {from_name, Name}} | Tags], TagAkk, Po
             NewPosAkk = PosAkk ++ [Index],
             evaluate_subscription_tags(Metric, Tags, NewTagAkk, NewPosAkk)
     end;
-evaluate_subscription_tags(Metric, [{Key, {from_name, Pos}} | Tags], TagAkk, PosAkk) 
-    when is_number(Pos), length(Metric) >= Pos, Pos > 0 ->
-    NewTagAkk = TagAkk ++ [{Key, lists:nth(Pos, Metric)}],
-    NewPosAkk = PosAkk ++ [Pos],
-    evaluate_subscription_tags(Metric, Tags, NewTagAkk, NewPosAkk);
 evaluate_subscription_tags(_Metric, [{_Key, {from_name, _Pos}} | _], _TagAkk, _PosAkk) ->
     exit(invalid_tag_options);
 evaluate_subscription_tags(Metric, [{Key, Value} | Tags], TagAkk, PosAkk) ->
+    io:format("normal: ~p / ~p~n", [Key, Value]),
     evaluate_subscription_tags(Metric, Tags, TagAkk ++ [{Key, Value}], PosAkk);
 evaluate_subscription_tags(_Metric, _Tags, _TagAkk, _PosAkk) ->
     exit(invalid_tag_options).
