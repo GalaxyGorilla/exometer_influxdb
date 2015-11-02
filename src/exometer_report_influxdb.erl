@@ -282,7 +282,7 @@ evaluate_subscription_tags(Metric, [ TagOpt = {Key, {from_name, Name}} | TagOpts
             NewPosAkk = PosAkk ++ [Index],
             evaluate_subscription_tags(Metric, TagOpts, NewTagAkk, NewPosAkk)
     end;
-evaluate_subscription_tags(Metric, [ Tag | Tags], TagAkk, PosAkk) ->
+evaluate_subscription_tags(Metric, [ Tag = {_Key, _Value} | Tags], TagAkk, PosAkk) ->
     evaluate_subscription_tags(Metric, Tags, TagAkk ++ [Tag], PosAkk);
 evaluate_subscription_tags(_Metric, [ Tag | _ ] , _TagAkk, _PosAkk) ->
     exit({invalid_tag_option, Tag}).
