@@ -277,18 +277,18 @@ evaluate_subscription_tags(Metric, [{Key, {from_name, Name}} | Tags], TagAkk, Po
     case string:str(Metric, [Name]) of
         0     -> exit(invalid_tag_options);
         Index ->
-            NewTagAkk = TagAkk ++ [{value(Key), Name}],
+            NewTagAkk = TagAkk ++ [{Key, Name}],
             NewPosAkk = PosAkk ++ [Index],
             evaluate_subscription_tags(Metric, Tags, NewTagAkk, NewPosAkk)
     end;
 evaluate_subscription_tags(Metric, [{Key, {from_name, Pos}} | Tags], TagAkk, PosAkk) 
     when is_number(Pos), length(Metric) >= Pos, Pos > 0 ->
-    NewTagAkk = TagAkk ++ [{value(Key), lists:nth(Pos, Metric)}],
+    NewTagAkk = TagAkk ++ [{Key, lists:nth(Pos, Metric)}],
     NewPosAkk = PosAkk ++ [Pos],
     evaluate_subscription_tags(Metric, Tags, NewTagAkk, NewPosAkk);
 evaluate_subscription_tags(_Metric, [{_Key, {from_name, _Pos}} | _], _TagAkk, _PosAkk) ->
     exit(invalid_tag_options);
 evaluate_subscription_tags(Metric, [{Key, Value} | Tags], TagAkk, PosAkk) ->
-    evaluate_subscription_tags(Metric, Tags, TagAkk ++ [{value(Key), Value}], PosAkk);
+    evaluate_subscription_tags(Metric, Tags, TagAkk ++ [{Key, Value}], PosAkk);
 evaluate_subscription_tags(_Metric, _Tags, _TagAkk, _PosAkk) ->
     exit(invalid_tag_options).
