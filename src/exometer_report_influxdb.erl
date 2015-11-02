@@ -82,7 +82,7 @@ exometer_report(Metric, DataPoint, _Extra, Value,
                          exometer_report:extra(), 
                          state()) -> callback_result().
 exometer_subscribe(Metric, _DataPoint, _Interval, TagOpts, 
-                   #state{metrics=Metrics, tags=DefaultTags} = State) ->
+                   #state{metrics=Metrics} = State) ->
     {MetricName, SubscriberTags} = evaluate_subscription_tags(Metric, TagOpts),
     case MetricName of
         [] -> exit({invalid_metric_name, MetricName});
@@ -282,7 +282,7 @@ evaluate_subscription_tags(Metric, [ TagOpt = {Key, {from_name, Name}} | TagOpts
             NewPosAkk = PosAkk ++ [Index],
             evaluate_subscription_tags(Metric, TagOpts, NewTagAkk, NewPosAkk)
     end;
-evaluate_subscription_tags(Metric, [ Tag = {Key, Value} | Tags], TagAkk, PosAkk) ->
+evaluate_subscription_tags(Metric, [ Tag | Tags], TagAkk, PosAkk) ->
     evaluate_subscription_tags(Metric, Tags, TagAkk ++ [Tag], PosAkk);
 evaluate_subscription_tags(_Metric, [ Tag | _ ] , _TagAkk, _PosAkk) ->
     exit({invalid_tag_option, Tag}).
