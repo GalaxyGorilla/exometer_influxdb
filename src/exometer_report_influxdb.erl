@@ -86,7 +86,8 @@ exometer_subscribe(Metric, _DataPoint, _Interval, TagOpts,
                    #state{metrics=Metrics, tags=DefaultTags} = State) ->
     {MetricName, SubscriberTags} = evaluate_subscription_tags(Metric, TagOpts),
     io:format("Default: ~p~n", [DefaultTags]),
-    io:format("Subscription: ~p~n", [SubscriberTags]),
+    io:format("Subscription before: ~p~n", [TagOpts]),
+    io:format("Subscription after: ~p~n", [SubscriberTags]),
     case MetricName of
         [] -> exit(invalid_metric_name);
         _  -> 
