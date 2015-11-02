@@ -85,7 +85,7 @@ exometer_subscribe(Metric, _DataPoint, _Interval, TagOpts,
                    #state{metrics=Metrics, tags=DefaultTags} = State) ->
     {MetricName, SubscriberTags} = evaluate_subscription_tags(Metric, TagOpts),
     case MetricName of
-        [] -> exit(invalid_metric_name);
+        [] -> exit({invalid_metric_name, MetricName});
         _  -> 
             NewMetrics = maps:put(Metric, {MetricName, SubscriberTags}, Metrics),
             {ok, State#state{metrics = NewMetrics}}
@@ -140,8 +140,8 @@ connect(Protocol, _, _) -> {error, {Protocol, not_supported}}.
     {ok, state()} | {error, term()}.
 send(Packet, #state{protocol = http, connection= Connection,
                     precision = Precision, db = DB} = State) ->
-    Url = hackney_url:make_url(<<"/">>, <<"write">>, 
-                               [{<<"db">>, DB}, {<<"precision">>, Precision}]),
+    Url = hackney_url:make_url(<<"/">>, <<"write">>, [{<<"db">>, DB}, 
+                               {<<"precision">>, Precision}]),
     Req = {post, Url, [], Packet},
     case hackney:send_request(Connection, Req) of
         {ok, 204, _, Ref} -> 
@@ -251,16 +251,16 @@ del_indices(List, Indices) ->
     SortedIndices = lists:reverse(lists:usort(Indices)),
     case length(SortedIndices) == length(Indices) of
         true -> del_indices1(List, SortedIndices);
-        false -> exit(invalid_indices)
+        false -> exit({invalid_indices, Indices})
     end.
 
 del_indices1(List, []) -> List;
-del_indices1([], [_Index | _Indices]) -> exit(invalid_indices);
+del_indices1([], Indices = [ _Index | _Indices1 ]) -> exit({too_many_indices, Indices});
 del_indices1(List, [Index | Indices]) when length(List) >= Index, Index > 0 ->
     {L1, [_|L2]} = lists:split(Index-1, List),
     del_indices1(L1 ++ L2, Indices);
-del_indices1(_List, _Indices) ->
-    exit(invalid_indices).
+del_indices1(_List, Indices) ->
+    exit({invalid_indices, Indices}).
 
 evaluate_subscription_tags(Metric, Tags) ->
     evaluate_subscription_tags(Metric, Tags, [], []).
@@ -268,23 +268,20 @@ evaluate_subscription_tags(Metric, Tags) ->
 evaluate_subscription_tags(Metric, [], TagAkk, PosAkk) ->
     MetricName = del_indices(Metric, PosAkk),
     {MetricName, maps:from_list(TagAkk)};
-evaluate_subscription_tags(Metric, [{Key, {from_name, Pos}} | Tags], TagAkk, PosAkk) 
+evaluate_subscription_tags(Metric, [{Key, {from_name, Pos}} | TagOpts], TagAkk, PosAkk) 
     when is_number(Pos), length(Metric) >= Pos, Pos > 0 ->
     NewTagAkk = TagAkk ++ [{Key, lists:nth(Pos, Metric)}],
     NewPosAkk = PosAkk ++ [Pos],
-    evaluate_subscription_tags(Metric, Tags, NewTagAkk, NewPosAkk);
-evaluate_subscription_tags(Metric, [{Key, {from_name, Name}} | Tags], TagAkk, PosAkk) 
-    when is_atom(Name) ->
+    evaluate_subscription_tags(Metric, TagOpts, NewTagAkk, NewPosAkk);
+evaluate_subscription_tags(Metric, [ TagOpt = {Key, {from_name, Name}} | TagOpts], TagAkk, PosAkk) 
     case string:str(Metric, [Name]) of
-        0     -> exit(invalid_tag_options);
+        0     -> exit({invalid_tag_option, TagOpt});
         Index ->
             NewTagAkk = TagAkk ++ [{Key, Name}],
             NewPosAkk = PosAkk ++ [Index],
-            evaluate_subscription_tags(Metric, Tags, NewTagAkk, NewPosAkk)
+            evaluate_subscription_tags(Metric, TagOpts, NewTagAkk, NewPosAkk)
     end;
-evaluate_subscription_tags(_Metric, [{_Key, {from_name, _Pos}} | _], _TagAkk, _PosAkk) ->
-    exit(invalid_tag_options);
-evaluate_subscription_tags(Metric, [{Key, Value} | Tags], TagAkk, PosAkk) ->
-    evaluate_subscription_tags(Metric, Tags, TagAkk ++ [{Key, Value}], PosAkk);
-evaluate_subscription_tags(_Metric, _Tags, _TagAkk, _PosAkk) ->
-    exit(invalid_tag_options).
+evaluate_subscription_tags(Metric, [ Tag = {Key, Value} | Tags], TagAkk, PosAkk) ->
+    evaluate_subscription_tags(Metric, Tags, TagAkk ++ [Tag], PosAkk);
+evaluate_subscription_tags(_Metric, [ Tag | _ ] , _TagAkk, _PosAkk) ->
+    exit({invalid_tag_option, Tag}).
