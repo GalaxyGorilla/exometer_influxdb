@@ -275,11 +275,13 @@ evaluate_subscription_tags(Metric, [], TagAkk, PosAkk) ->
     MetricName = del_indices(Metric, PosAkk),
     {MetricName, maps:from_list(TagAkk)};
 evaluate_subscription_tags(Metric, [{Key, {from_name, Pos}} | Tags], TagAkk, PosAkk) 
+    io:format("number: ~p / ~p~n", [Key, Pos]),
     when is_number(Pos), length(Metric) >= Pos, Pos > 0 ->
     NewTagAkk = TagAkk ++ [{Key, lists:nth(Pos, Metric)}],
     NewPosAkk = PosAkk ++ [Pos],
     evaluate_subscription_tags(Metric, Tags, NewTagAkk, NewPosAkk);
 evaluate_subscription_tags(Metric, [{Key, {from_name, Name}} | Tags], TagAkk, PosAkk) 
+    io:format("else: ~p / ~p~n", [Key, Name]),
     when is_atom(Name) ->
     case string:str(Metric, [Name]) of
         0     -> exit(invalid_tag_options);
