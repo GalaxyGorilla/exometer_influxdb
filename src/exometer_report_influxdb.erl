@@ -273,7 +273,8 @@ evaluate_subscription_tags(Metric, [{Key, {from_name, Pos}} | TagOpts], TagAkk, 
     NewTagAkk = TagAkk ++ [{Key, lists:nth(Pos, Metric)}],
     NewPosAkk = PosAkk ++ [Pos],
     evaluate_subscription_tags(Metric, TagOpts, NewTagAkk, NewPosAkk);
-evaluate_subscription_tags(Metric, [ TagOpt = {Key, {from_name, Name}} | TagOpts], TagAkk, PosAkk) 
+evaluate_subscription_tags(Metric, [ TagOpt = {Key, {from_name, Name}} | TagOpts ], 
+    TagAkk, PosAkk) ->
     case string:str(Metric, [Name]) of
         0     -> exit({invalid_tag_option, TagOpt});
         Index ->
