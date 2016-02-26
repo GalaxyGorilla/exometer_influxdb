@@ -334,7 +334,8 @@ metric_elem_to_list(E) when is_atom(E) -> atom_to_list(E);
 metric_elem_to_list(E) when is_list(E) -> E;
 metric_elem_to_list(E) when is_integer(E) -> integer_to_list(E).
 
--spec name(exometer_report:metric()) -> binary().
+-spec name(exometer_report:metric() | atom()) -> binary().
+name(Metric) when is_atom(Metric) -> atom_to_binary(Metric, utf8);
 name(Metric) -> iolist_to_binary(metric_to_string(Metric)).
 
 -spec key(integer() | atom() | list() | binary()) -> binary().
@@ -414,28 +415,64 @@ del_indices1(_List, Indices) ->
 evaluate_subscription_tags(Metric, undefined) -> 
     evaluate_subscription_tags(Metric, []);
 evaluate_subscription_tags(Metric, Tags) ->
-    evaluate_subscription_tags(Metric, Tags, [], []).
+    evaluate_subscription_tags(undefined, Metric, Tags, [], []).
 
--spec evaluate_subscription_tags(list(), [{atom(), value()}], [{atom(), value()}],
-                                 [integer()]) -> {list(), map()}.
-evaluate_subscription_tags(Metric, [], TagAcc, PosAcc) ->
-    MetricName = del_indices(Metric, PosAcc),
-    {MetricName, maps:from_list(TagAcc)};
-evaluate_subscription_tags(Metric, [{Key, {from_name, Pos}} | TagOpts], TagAcc, PosAcc)
+-spec evaluate_subscription_tags(atom(), list(), [{atom(), value()}], [{atom(), value()}],
+                                 [integer()]) -> {list() | atom(), map()}.
+evaluate_subscription_tags(Key, Metric, [], TagAcc, PosAcc) ->
+    NewTagAcc = [{TagKey, TagValue} || {TagKey, TagValue} <- TagAcc, TagValue /= undefined],
+    case Key of
+        undefined ->
+            MetricName = [Elem || Elem <- del_indices(Metric, PosAcc), Elem /= undefined];
+        _ ->
+            MetricName = Key
+    end,
+    {MetricName, maps:from_list(NewTagAcc)};
+evaluate_subscription_tags(Key, Metric, [{'$series_key', undefined} | TagOpts], TagAcc, PosAcc) ->
+    evaluate_subscription_tags(Key, Metric, TagOpts, TagAcc, PosAcc);
+evaluate_subscription_tags(Key, _Metric, [{'$series_key', Key} | _TagOpts], _TagAcc, _PosAcc) ->
+    exit({multiple_series_keys, Key});
+evaluate_subscription_tags(undefined, Metric, [{'$series_key', NewKey} | TagOpts], TagAcc, PosAcc) ->
+    evaluate_subscription_tags(NewKey, Metric, TagOpts, TagAcc, PosAcc);
+evaluate_subscription_tags(Key, Metric, [{'$series_key', {from_name, Pos}} | TagOpts], TagAcc, PosAcc)
     when is_number(Pos), length(Metric) >= Pos, Pos > 0 ->
-    NewTagAcc = TagAcc ++ [{Key, lists:nth(Pos, Metric)}],
-    NewPosAcc = PosAcc ++ [Pos],
-    evaluate_subscription_tags(Metric, TagOpts, NewTagAcc, NewPosAcc);
-evaluate_subscription_tags(Metric, [TagOpt = {Key, {from_name, Name}} | TagOpts],
+    case Key of
+        undefined ->
+            exit({multiple_series_keys, {Key, {position, Pos}}});
+        _ ->
+            NewPosAcc = PosAcc ++ [Pos],
+            NewKey = lists:nth(Pos, Metric),
+            evaluate_subscription_tags(NewKey, Metric, TagOpts, TagAcc, NewPosAcc)
+    end;
+evaluate_subscription_tags(Key, Metric, [{TagKey, {from_name, Pos}} | TagOpts], TagAcc, PosAcc)
+    when is_number(Pos), length(Metric) >= Pos, Pos > 0 ->
+    case TagKey of
+        '$delete' ->
+            NewTagAcc = TagAcc,
+            NewPosAcc = PosAcc ++ [Pos];
+        _ when length(Metric) >= Pos ->
+            NewTagAcc = TagAcc ++ [{TagKey, lists:nth(Pos, Metric)}],
+            NewPosAcc = PosAcc ++ [Pos];
+        _ ->
+            NewTagAcc = TagAcc,
+            NewPosAcc = PosAcc
+    end,
+    evaluate_subscription_tags(Key, Metric, TagOpts, NewTagAcc, NewPosAcc);
+evaluate_subscription_tags(Key, Metric, [{TagKey, {from_name, Name}} | TagOpts],
     TagAcc, PosAcc) ->
     case string:str(Metric, [Name]) of
-        0     -> exit({invalid_tag_option, TagOpt});
+        0     -> evaluate_subscription_tags(Key, Metric, TagOpts, TagAcc, PosAcc);
         Index ->
-            NewTagAcc = TagAcc ++ [{Key, Name}],
+            case TagKey of
+                '$delete' ->
+                    NewTagAcc = TagAcc;
+                _ ->
+                    NewTagAcc = TagAcc ++ [{TagKey, Name}]
+            end,
             NewPosAcc = PosAcc ++ [Index],
-            evaluate_subscription_tags(Metric, TagOpts, NewTagAcc, NewPosAcc)
+            evaluate_subscription_tags(Key, Metric, TagOpts, NewTagAcc, NewPosAcc)
     end;
-evaluate_subscription_tags(Metric, [Tag = {_Key, _Value} | Tags], TagAcc, PosAcc) ->
-    evaluate_subscription_tags(Metric, Tags, TagAcc ++ [Tag], PosAcc);
-evaluate_subscription_tags(_Metric, [Tag | _] , _TagAcc, _PosAcc) ->
+evaluate_subscription_tags(Key, Metric, [Tag = {_Key, _Value} | Tags], TagAcc, PosAcc) ->
+    evaluate_subscription_tags(Key, Metric, Tags, TagAcc ++ [Tag], PosAcc);
+evaluate_subscription_tags(_Key, _Metric, [Tag | _] , _TagAcc, _PosAcc) ->
     exit({invalid_tag_option, Tag}).
